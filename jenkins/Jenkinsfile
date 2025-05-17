@@ -1,0 +1,72 @@
+pipeline {
+    agent any
+    environment {
+        DOCKER_IMAGE = "myapp:${BUILD_NUMBER}"
+        REGISTRY = "docker.io/mydockerhubusername"
+        KUBECONFIG_CREDENTIAL_ID = "kubeconfig-cred"
+    }
+    tools {
+        maven 'Maven 3.8.5'
+    }
+    stages {
+        stage('Checkout') {
+            steps {
+                git url: 'https://github.com/yourrepo/yourproject.git'
+            }
+        }
+        stage('Build with Maven') {
+            steps {
+                sh 'mvn clean install'
+            }
+        }
+        stage('Code Quality - SonarQube') {
+            environment {
+                SONARQUBE_ENV = credentials('sonarqube-token-id')
+            }
+            steps {
+                withSonarQubeEnv('MySonarQube') {
+                    sh 'mvn sonar:sonar'
+                }
+            }
+        }
+        stage('Unit Tests') {
+            steps {
+                sh 'mvn test'
+            }
+            post {
+                always {
+                    junit 'target/surefire-reports/*.xml'
+                }
+            }
+        }
+        stage('Docker Build & Push') {
+            steps {
+                script {
+                    docker.build("${REGISTRY}/${DOCKER_IMAGE}").push()
+                }
+            }
+        }
+        stage('Deploy to Kubernetes') {
+            steps {
+                withCredentials([file(credentialsId: "${KUBECONFIG_CREDENTIAL_ID}", variable: 'KUBECONFIG')]) {
+                    sh '''
+                        export KUBECONFIG=$KUBECONFIG
+                        kubectl set image deployment/myapp-deployment myapp-container=${REGISTRY}/${DOCKER_IMAGE}
+                        kubectl rollout status deployment/myapp-deployment
+                    '''
+                }
+            }
+        }
+    }
+    post {
+        success {
+            echo '✅ Deployment successful!'
+        }
+        failure {
+            echo '❌ Deployment failed!'
+        }
+        always {
+            cleanWs()
+        }
+    }
+}
