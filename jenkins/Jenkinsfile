@@ -85,3 +85,11 @@ pipeline {
         }
     }
 }
+
+
+
+Java App (Maven)	             Python App
+sh 'mvn clean install'	       sh 'pip install -r requirements.txt'
+sh 'mvn package'	           sh 'python setup.py install'
+sh 'mvn test'	               sh 'pytest' or unittest
+
