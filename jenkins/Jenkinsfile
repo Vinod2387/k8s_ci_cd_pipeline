@@ -19,6 +19,8 @@ pipeline {
                 sh 'mvn clean install'
             }
         }
+
+        
         stage('Code Quality - SonarQube') {
             environment {
                 SONARQUBE_ENV = credentials('sonarqube-token-id')
@@ -39,6 +41,19 @@ pipeline {
                 }
             }
         }
+        
+        For Python app use folling block for test.
+            stage('Unit Tests') {
+    steps {
+        sh 'pytest --junitxml=results.xml'
+    }
+    post {
+        always {
+            junit 'results.xml'
+        }
+    }
+}
+
         stage('Docker Build & Push') {
             steps {
                 script {
